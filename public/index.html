@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClubOS Trivia — Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg:           #0C0C0F;
+    --bg2:          #101015;
+    --bg-panel:     #09090D;
+    --bg-card:      #141419;
+    --yellow:       #F5E642;
+    --yellow-dim:   rgba(245,230,66,0.12);
+    --yellow-faint: rgba(245,230,66,0.05);
+    --white:        #F0EEE8;
+    --dim:          rgba(240,238,232,0.5);
+    --faint:        rgba(240,238,232,0.05);
+    --sep:          rgba(240,238,232,0.08);
+    --red:          #E04040;
+    --glow-y:       rgba(245,230,66,0.18);
+    --accent2:      #A3F5A0;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html {
+    width:100vw; height:100vh;
+    display:flex; align-items:flex-start; justify-content:flex-start;
+    background:#000; overflow:hidden;
+  }
+
+  body {
+    font-family:'Space Grotesk', sans-serif;
+    background:var(--bg);
+    width:1920px; height:1080px;
+    overflow:hidden; color:var(--white);
+    position:relative;
+    transform-origin:top left;
+    transform:scale(var(--tv-scale,1));
+  }
+
+  .bg-layer { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .bg-grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(245,230,66,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,230,66,0.025) 1px, transparent 1px);
+    background-size:80px 80px;
+  }
+  .bg-grid-major {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(245,230,66,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,230,66,0.05) 1px, transparent 1px);
+    background-size:400px 400px;
+  }
+  .bg-shapes { position:absolute; inset:0; overflow:hidden; }
+  .bg-circle { position:absolute; border-radius:50%; border:1px solid rgba(245,230,66,0.04); pointer-events:none; }
+  .bg-circle.c1 { width:700px;height:700px; top:-200px;left:-200px; }
+  .bg-circle.c2 { width:500px;height:500px; top:300px;right:-100px; }
+  .bg-circle.c3 { width:260px;height:260px; bottom:60px;left:600px; }
+  .bg-circle.c4 { width:900px;height:900px; bottom:-400px;right:-200px; }
+  .glow-blob { position:absolute; border-radius:50%; filter:blur(160px); pointer-events:none; }
+  .glow-blob.a { width:700px;height:500px; background:rgba(245,230,66,0.1); top:-200px;right:200px; opacity:0.5; }
+  .glow-blob.b { width:500px;height:400px; background:rgba(163,245,160,0.06); bottom:-100px;left:400px; animation:blobDrift 18s ease-in-out infinite alternate; }
+  @keyframes blobDrift { from{transform:translate(0,0)} to{transform:translate(40px,20px)} }
+  .scanlines { position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px); }
+
+  .display-wrapper {
+    position:relative; z-index:10;
+    display:grid;
+    grid-template-rows:92px 1fr 68px;
+    height:1080px; width:1920px;
+  }
+
+  /* HEADER */
+  .header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 52px;
+    background:rgba(9,9,13,0.96);
+    border-bottom:1px solid var(--sep);
+    backdrop-filter:blur(24px);
+    position:relative;
+  }
+  .header::after {
+    content:'';
+    position:absolute; bottom:-2px; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--yellow), rgba(245,230,66,0.3), var(--yellow), transparent);
+    opacity:0.8;
+  }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand-badge {
+    height:56px; display:flex; align-items:center; gap:14px;
+    padding:0 22px 0 16px;
+    border:1px solid rgba(245,230,66,0.2);
+    border-radius:3px;
+    background:var(--yellow-faint);
+    position:relative;
+  }
+  .brand-badge::before {
+    content:'';
+    position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--yellow);
+    border-radius:3px 0 0 3px;
+  }
+  .brand-text { display:flex; flex-direction:column; gap:3px; }
+  .brand-name { font-family:'Oswald'; font-size:15px; font-weight:600; color:var(--white); letter-spacing:1.5px; text-transform:uppercase; line-height:1; }
+  .brand-venue { font-family:'DM Mono'; font-size:10px; color:var(--yellow); letter-spacing:2px; text-transform:uppercase; line-height:1; }
+
+  .hdr-center {
+    position:absolute; left:50%; transform:translateX(-50%);
+    text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .event-badge {
+    display:flex; align-items:center; gap:10px;
+    background:var(--yellow-faint);
+    border:1px solid rgba(245,230,66,0.2);
+    border-radius:3px; padding:7px 20px;
+  }
+  .event-icon { font-size:18px; }
+  .event-label { font-family:'Oswald'; font-size:22px; font-weight:600; letter-spacing:3px; color:var(--yellow); text-transform:uppercase; line-height:1; }
+  .event-round { font-family:'DM Mono'; font-size:11px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; }
+
+  .hdr-right { display:flex; align-items:center; gap:20px; }
+  .live-time { font-family:'DM Mono'; font-size:28px; color:var(--white); letter-spacing:2px; }
+  .time-lbl { font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; text-align:right; margin-top:2px; }
+  .pause-btn {
+    display:flex; align-items:center; gap:8px;
+    background:var(--yellow-faint); border:1px solid rgba(245,230,66,0.25);
+    border-radius:4px; padding:8px 16px; cursor:pointer;
+    font-family:'Oswald'; font-size:15px; letter-spacing:2px; color:var(--yellow);
+    transition:all 0.2s;
+  }
+  .pause-btn:hover { background:rgba(245,230,66,0.15); }
+  .pause-btn.paused { background:rgba(163,245,160,0.08); border-color:rgba(163,245,160,0.3); color:var(--accent2); }
+
+  /* MAIN GRID */
+  .main-grid { display:grid; grid-template-columns:1fr 400px; overflow:hidden; }
+
+  .question-area {
+    padding:0 64px; display:flex; flex-direction:column;
+    justify-content:center; position:relative; overflow:hidden;
+  }
+  .screen { display:none; }
+  .screen.active { display:flex; flex-direction:column; height:100%; justify-content:center; }
+
+  .question-area::before {
+    content:'';
+    position:absolute; left:0; top:12%; bottom:12%; width:2px;
+    background:linear-gradient(180deg, transparent, var(--yellow), transparent);
+    animation:borderPulse 5s ease-in-out infinite;
+  }
+  @keyframes borderPulse { 0%,100%{opacity:0.2} 50%{opacity:0.8} }
+
+  /* PAUSE OVERLAY */
+  .pause-overlay {
+    position:absolute; inset:0;
+    background:rgba(9,9,13,0.96); backdrop-filter:blur(14px);
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:20px; z-index:50;
+  }
+  .pause-overlay.active { display:flex; }
+  .pause-title { font-family:'Bebas Neue'; font-size:72px; letter-spacing:6px; color:var(--yellow); }
+  .pause-sub { font-size:18px; color:var(--dim); letter-spacing:2px; }
+
+  /* LOBBY */
+  .lobby { text-align:center; align-items:center; }
+  .lobby-icon { font-size:72px; margin-bottom:14px; animation:bounce 1.6s ease-in-out infinite alternate; }
+  @keyframes bounce { from{transform:translateY(0) scale(1)} to{transform:translateY(-10px) scale(1.04)} }
+  .lobby-title { font-family:'Bebas Neue'; font-size:96px; letter-spacing:4px; line-height:0.9; margin-bottom:18px; }
+  .lobby-title .line1 { color:var(--white); display:block; }
+  .lobby-title .line2 { color:var(--yellow); display:block; }
+  .lobby-title .line3 { font-family:'Space Grotesk'; font-size:16px; letter-spacing:8px; font-weight:300; color:var(--dim); margin-top:10px; display:block; text-transform:uppercase; }
+  .lobby-sub { font-size:18px; color:var(--dim); margin-bottom:8px; font-weight:300; }
+  .lobby-count { font-family:'DM Mono'; font-size:52px; color:var(--accent2); letter-spacing:2px; margin-bottom:6px; }
+  .lobby-hint { font-size:13px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
+  .start-btn {
+    margin-top:28px;
+    background:var(--yellow); border:none; border-radius:3px;
+    padding:18px 56px;
+    font-family:'Oswald'; font-size:22px; font-weight:600; letter-spacing:3px; color:var(--bg);
+    cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; text-transform:uppercase;
+  }
+  .start-btn:hover { transform:translateY(-3px); box-shadow:0 8px 32px rgba(245,230,66,0.35); }
+
+  /* ROUND INTRO */
+  .round-intro { text-align:center; align-items:center; }
+  .ri-icon { font-size:88px; margin-bottom:14px; animation:bounce 1.2s ease-in-out infinite alternate; }
+  .ri-eye { font-size:11px; letter-spacing:5px; text-transform:uppercase; color:var(--accent2); margin-bottom:10px; }
+  .ri-title { font-family:'Bebas Neue'; font-size:92px; letter-spacing:4px; line-height:1; color:var(--yellow); margin-bottom:16px; }
+  .ri-sub { font-size:19px; color:var(--dim); max-width:660px; line-height:1.65; margin-bottom:24px; font-weight:300; }
+  .ri-countdown { font-family:'Oswald'; font-size:16px; letter-spacing:3px; color:var(--yellow); font-weight:500; }
+
+  /* QUESTION */
+  .q-meta { display:flex; align-items:center; gap:16px; margin-bottom:20px; animation:fadeUp 0.45s ease both; }
+  .q-num { font-family:'Oswald'; font-size:15px; font-weight:600; letter-spacing:2px; color:var(--yellow); background:var(--yellow-faint); border:1px solid rgba(245,230,66,0.25); padding:4px 14px; border-radius:2px; }
+  .q-cat { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); font-weight:500; }
+  .q-pts { margin-left:auto; font-family:'Oswald'; font-size:22px; font-weight:600; color:var(--yellow); letter-spacing:2px; }
+  .q-text { font-family:'Bebas Neue'; font-size:58px; color:var(--white); line-height:1.1; letter-spacing:1px; margin-bottom:32px; animation:fadeUp 0.45s ease 0.08s both; max-width:1020px; }
+  .ans-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; animation:fadeUp 0.45s ease 0.16s both; }
+  .abtn { display:flex; align-items:center; gap:16px; background:var(--faint); border:1.5px solid var(--sep); border-radius:4px; padding:17px 20px; position:relative; overflow:hidden; transition:all 0.2s; }
+  .abtn.correct { background:rgba(245,230,66,0.08); border-color:var(--yellow); animation:correctPop 0.5s ease; }
+  .abtn.wrong { background:rgba(224,64,64,0.04); border-color:rgba(224,64,64,0.12); opacity:0.35; }
+  @keyframes correctPop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.015);box-shadow:0 0 40px rgba(245,230,66,0.25)} }
+  .aletter { width:40px; height:40px; border-radius:3px; background:var(--faint); border:1px solid var(--sep); display:flex; align-items:center; justify-content:center; font-family:'Oswald'; font-size:20px; font-weight:600; color:var(--yellow); flex-shrink:0; transition:all 0.2s; }
+  .abtn.correct .aletter { background:var(--yellow); border-color:var(--yellow); color:var(--bg); }
+  .abtn.wrong .aletter { background:rgba(224,64,64,0.1); border-color:transparent; color:var(--red); }
+  .atext { font-size:17px; font-weight:500; color:var(--white); line-height:1.3; }
+  .correct-sweep { position:absolute; inset:0; background:linear-gradient(90deg,rgba(245,230,66,0.08),transparent); animation:sweep 1s ease forwards; pointer-events:none; }
+  @keyframes sweep { from{width:0} to{width:100%} }
+
+  /* TIMER */
+  .timer-zone { position:absolute; top:36px; right:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .timer-ring { width:88px; height:88px; position:relative; }
+  .timer-ring svg { transform:rotate(-90deg); width:88px; height:88px; }
+  .timer-ring circle { fill:none; stroke-width:5; r:37; cx:44; cy:44; }
+  .timer-track { stroke:var(--faint); }
+  .timer-fill { stroke:var(--yellow); stroke-linecap:round; stroke-dasharray:233; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear, stroke 0.5s; filter:drop-shadow(0 0 6px rgba(245,230,66,0.5)); }
+  .timer-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue'; font-size:32px; color:var(--white); }
+  .timer-lbl { font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+
+  /* REVEAL */
+  .rev-fact-wrap { margin-top:22px; animation:fadeUp 0.5s ease 0.5s both; }
+  .rev-fact-lbl { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+  .rev-fact-text { font-size:18px; color:var(--white); max-width:900px; line-height:1.7; opacity:0.8; font-weight:300; }
+
+  /* LEADERBOARD */
+  .lb-title { font-family:'Bebas Neue'; font-size:56px; letter-spacing:4px; color:var(--yellow); animation:fadeUp 0.4s ease both; }
+  .lb-sub { font-size:12px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:24px; animation:fadeUp 0.4s ease 0.06s both; }
+  .lb-list { display:flex; flex-direction:column; gap:10px; }
+  .lb-row { display:flex; align-items:center; gap:18px; background:var(--faint); border:1px solid var(--sep); border-radius:4px; padding:14px 22px; position:relative; overflow:hidden; }
+  .lb-row.gold   { background:rgba(245,230,66,0.07); border-color:rgba(245,230,66,0.25); }
+  .lb-row.silver { background:rgba(200,200,220,0.04); border-color:rgba(200,200,220,0.12); }
+  .lb-row.bronze { background:rgba(205,127,50,0.05); border-color:rgba(205,127,50,0.18); }
+  .lb-rank { font-family:'Bebas Neue'; font-size:34px; min-width:44px; text-align:center; color:var(--dim); }
+  .lb-row.gold .lb-rank   { color:var(--yellow); text-shadow:0 0 16px rgba(245,230,66,0.4); }
+  .lb-row.silver .lb-rank { color:#C0C0C0; }
+  .lb-row.bronze .lb-rank { color:#CD7F32; }
+  .lb-name { flex:1; font-size:21px; font-weight:600; color:var(--white); }
+  .lb-row.gold .lb-name { font-size:25px; }
+  .lb-streak { font-size:11px; color:var(--accent2); background:rgba(163,245,160,0.1); border-radius:20px; padding:3px 10px; font-weight:600; }
+  .lb-score { font-family:'Bebas Neue'; font-size:34px; color:var(--yellow); letter-spacing:2px; min-width:100px; text-align:right; }
+  .lb-row.gold .lb-score { font-size:40px; }
+  .lb-bar-wrap { position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--sep); }
+  .lb-bar { height:100%; background:linear-gradient(90deg, var(--yellow), var(--accent2)); transition:width 1.6s cubic-bezier(0.16,1,0.3,1); }
+
+  /* GAME OVER */
+  .game-over { text-align:center; align-items:center; }
+  .go-trophy { font-size:88px; margin-bottom:14px; animation:bounce 1.2s ease-in-out infinite alternate; }
+  .go-title { font-family:'Bebas Neue'; font-size:88px; letter-spacing:6px; color:var(--yellow); margin-bottom:8px; }
+  .go-winner { font-size:26px; color:var(--dim); margin-bottom:28px; font-weight:300; }
+  .go-winner b { color:var(--yellow); font-size:30px; font-weight:600; }
+
+  /* RIGHT PANEL */
+  .right-panel { background:rgba(9,9,13,0.9); border-left:1px solid var(--sep); display:flex; flex-direction:column; overflow:hidden; backdrop-filter:blur(20px); }
+  .qr-section { padding:20px 22px; border-bottom:1px solid var(--sep); display:flex; flex-direction:column; align-items:center; gap:10px; flex-shrink:0; }
+  .qr-eye { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--yellow); font-weight:600; }
+  #qrCanvas { width:186px;height:186px; background:white; border-radius:4px; padding:7px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #qrCanvas img,#qrCanvas canvas { width:172px!important; height:172px!important; }
+  #qrUrl { font-size:9px; color:rgba(240,238,232,0.2); text-align:center; word-break:break-all; max-width:186px; line-height:1.5; }
+  .qr-hint { font-size:11px; color:var(--dim); text-align:center; }
+
+  .panel-section { padding:14px 20px; border-bottom:1px solid var(--sep); flex-shrink:0; }
+  .panel-eye { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--yellow); font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+  .panel-eye::after { content:''; flex:1; height:1px; background:rgba(245,230,66,0.1); }
+
+  .stats-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .stat-box { background:var(--faint); border:1px solid var(--sep); border-radius:4px; padding:11px 13px; }
+  .stat-val { font-family:'Bebas Neue'; font-size:30px; letter-spacing:1px; line-height:1; }
+  .stat-val.yellow { color:var(--yellow); }
+  .stat-val.white  { color:var(--white); }
+  .stat-val.lime   { color:var(--accent2); }
+  .stat-lbl { font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+
+  .round-tracker { display:flex; gap:8px; }
+  .round-pip { flex:1; height:5px; border-radius:2px; background:var(--faint); border:1px solid var(--sep); transition:all 0.5s; }
+  .round-pip.active { background:var(--yellow); border-color:var(--yellow); box-shadow:0 0 8px rgba(245,230,66,0.4); }
+  .round-pip.done   { background:rgba(245,230,66,0.3); border-color:rgba(245,230,66,0.2); }
+
+  .activity-section { flex:1; overflow:hidden; padding:14px 20px; display:flex; flex-direction:column; }
+  .activity-feed { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:7px; }
+  .activity-item { display:flex; align-items:center; gap:11px; background:var(--faint); border-radius:4px; padding:9px 12px; border:1px solid var(--sep); animation:slideIn 0.35s ease both; flex-shrink:0; }
+  @keyframes slideIn { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }
+  .av { width:30px; height:30px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#0C0C0F; flex-shrink:0; }
+  .av-name { font-size:13px; font-weight:600; color:var(--white); flex:1; }
+  .av-action { font-size:11px; color:var(--dim); }
+  .av-pts { font-family:'DM Mono'; font-size:14px; font-weight:700; color:var(--accent2); }
+
+  /* FOOTER */
+  .footer { background:rgba(9,9,13,0.98); border-top:1px solid var(--sep); display:flex; align-items:center; justify-content:space-between; padding:0 52px; backdrop-filter:blur(20px); position:relative; }
+  .footer::before { content:''; position:absolute; top:-1px; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, var(--yellow), transparent); opacity:0.35; }
+  .footer-center { font-size:13px; color:var(--dim); display:flex; align-items:center; gap:10px; font-weight:300; }
+  .fdot { width:4px; height:4px; border-radius:50%; background:var(--yellow); opacity:0.5; }
+
+  /* SPONSOR SLOT */
+  .sponsor-slot { display:flex; align-items:center; gap:14px; }
+  .sponsor-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(245,230,66,0.4); }
+  .sponsor-name { font-family:'Oswald'; font-size:18px; font-weight:600; letter-spacing:2px; color:rgba(245,230,66,0.7); border:1px dashed rgba(245,230,66,0.25); padding:4px 14px; border-radius:2px; }
+
+  .clubos-lockup { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+  .clubos-powered { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:rgba(240,238,232,0.22); }
+  .clubos-wordmark { font-size:20px; font-weight:700; letter-spacing:0.04em; color:rgba(240,238,232,0.35); }
+  .clubos-wordmark span { color:rgba(245,230,66,0.55); font-style:italic; }
+
+  .key-hint { font-size:10px; color:rgba(240,238,232,0.2); letter-spacing:1px; }
+  .key-hint kbd { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:2px; padding:1px 5px; font-size:10px; }
+
+  /* CONFETTI */
+  .cfwrap { position:fixed; inset:0; pointer-events:none; z-index:100; overflow:hidden; }
+  .cp { position:absolute; width:9px; height:9px; top:-20px; opacity:0; animation:cfFall linear forwards; border-radius:2px; }
+  @keyframes cfFall { 0%{opacity:1;transform:translateY(0) rotate(0)} 100%{opacity:0;transform:translateY(1200px) rotate(720deg)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  .err-banner { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--red); color:white; padding:12px 24px; border-radius:4px; font-size:13px; font-weight:600; z-index:200; display:none; }
+</style>
+</head>
+<body>
+
+<script>
+const CONFIG = {
+  supabaseUrl:  'https://ykfvwqewnfnibpzytspn.supabase.co',
+  supabaseKey:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrZnZ3cWV3bmZuaWJwenl0c3BuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MjE2NzYsImV4cCI6MjA5MDM5NzY3Nn0.cnMztZVHDV3Hof-26aRi4NIM7wKwjzxAfoMBR3oItms',
+  clubSlug:     'clubos-demo',
+  footerMsg:    'Scan to play · No app needed · Submit answers from your phone',
+  questionSecs: 20,
+  revealSecs:   5,
+  introCDSecs:  5,
+  rounds: [
+    {
+      name: 'Food & Drink',
+      icon: '🍺',
+      intro: "Round 1 — things you eat, drink, and argue about.",
+      questions: [
+        { q: "Which country invented champagne?", answers: ["Italy","Spain","France","Germany"], correct: 2, fact: "Dom Pérignon, a French monk, is credited with perfecting the method in the late 1600s — though he actually tried to get rid of the bubbles at first.", pts: 100 },
+        { q: "A traditional Margarita is made with tequila, lime juice, and what third ingredient?", answers: ["Triple Sec","Simple syrup","Grenadine","Blue Curaçao"], correct: 0, fact: "Triple Sec is the orange liqueur that defines the classic Margarita. Cointreau is a premium version of the same thing.", pts: 100 },
+        { q: "Which nut is used to make marzipan?", answers: ["Walnut","Cashew","Hazelnut","Almond"], correct: 3, fact: "Marzipan is just ground almonds and sugar. It's been made since the 13th century and is still used in wedding cakes across Europe.", pts: 100 },
+        { q: "What is the most consumed beverage in the world after water?", answers: ["Coffee","Tea","Beer","Orange juice"], correct: 1, fact: "Tea beats coffee globally — particularly dominant in Asia. Over 6 billion cups are drunk daily worldwide.", pts: 100 },
+        { q: "Scoville units measure the heat of what?", answers: ["Mustard","Hot peppers","Curry","Wasabi"], correct: 1, fact: "The Carolina Reaper held the Guinness World Record at over 2 million Scoville units. A jalapeño is only 2,500–8,000.", pts: 100 }
+      ]
+    },
+    {
+      name: 'Pop Culture',
+      icon: '🎬',
+      intro: "Round 2 — movies, TV, and things everyone pretends to know.",
+      questions: [
+        { q: "Which film features the line 'You can't handle the truth!'?", answers: ["The Firm","Philadelphia","A Few Good Men","JFK"], correct: 2, fact: "Jack Nicholson ad-libbed it slightly. The original script said 'You already have the truth.' Nicholson's version stuck.", pts: 100 },
+        { q: "What is the highest-grossing film of all time (not adjusted for inflation)?", answers: ["Titanic","Avengers: Endgame","Avatar","Star Wars: The Force Awakens"], correct: 2, fact: "Avatar (2009) crossed $2.9 billion on its re-release run in 2023, reclaiming the top spot from Avengers: Endgame.", pts: 200 },
+        { q: "The TV show 'Breaking Bad' is set in which US city?", answers: ["Phoenix","Tucson","El Paso","Albuquerque"], correct: 3, fact: "Creator Vince Gilligan chose Albuquerque because of its abundant sunshine — essential for showing methamphetamine being cooked outdoors.", pts: 100 },
+        { q: "Which streaming service first produced 'House of Cards' in the US?", answers: ["HBO","Amazon","Netflix","Hulu"], correct: 2, fact: "Netflix bet $100 million on 'House of Cards' before a single episode aired — a landmark moment in streaming's disruption of traditional TV.", pts: 200 },
+        { q: "Complete the famous 'Jeopardy!' theme song: it's called 'Think!'", answers: ["True","False — it's called 'Thinking Music'","False — it has no official name","False — it's called 'The Think Theme'"], correct: 3, fact: "Merv Griffin wrote it in under a minute for his wife, originally as a lullaby. He earned over $70 million from the royalties.", pts: 200 }
+      ]
+    },
+    {
+      name: 'Sports',
+      icon: '🏆',
+      intro: "Round 3 — if you watched it, you know it.",
+      questions: [
+        { q: "How many players are on a basketball court per team during play?", answers: ["4","5","6","7"], correct: 1, fact: "Five players per team — two guards, two forwards, one center. The original game in 1891 had 9 players per side.", pts: 100 },
+        { q: "Which country has won the most FIFA World Cup titles?", answers: ["Germany","Argentina","France","Brazil"], correct: 3, fact: "Brazil leads with 5 titles (1958, 1962, 1970, 1994, 2002). They're also the only nation to have played in every World Cup.", pts: 100 },
+        { q: "In golf, what term describes completing a hole in two strokes under par?", answers: ["Birdie","Eagle","Albatross","Condor"], correct: 1, fact: "Eagle = 2 under. Birdie = 1 under. Albatross (or double eagle) = 3 under. A condor, 4 under, has only happened a handful of times in recorded history.", pts: 200 },
+        { q: "Which NHL team has the most Stanley Cup championships?", answers: ["Detroit Red Wings","Chicago Blackhawks","Boston Bruins","Montreal Canadiens"], correct: 3, fact: "The Montreal Canadiens have 24 Stanley Cup championships — more than any other franchise in North American professional sports.", pts: 200 },
+        { q: "The 'Fosbury Flop' revolutionized which track and field event?", answers: ["Long jump","Pole vault","High jump","Triple jump"], correct: 2, fact: "Dick Fosbury debuted his back-first technique at the 1968 Mexico City Olympics and won gold. Within 10 years, every elite high jumper had switched to his method.", pts: 200 }
+      ]
+    },
+    {
+      name: 'Music',
+      icon: '🎵',
+      intro: "Round 4 — from classics to current. Something for everyone.",
+      questions: [
+        { q: "How many strings does a standard guitar have?", answers: ["4","5","6","7"], correct: 2, fact: "Six strings — E, A, D, G, B, E from lowest to highest. A bass guitar typically has four. A 12-string guitar pairs each string with a near-identical second.", pts: 100 },
+        { q: "Which artist has won the most Grammy Awards in history?", answers: ["Adele","Taylor Swift","Beyoncé","Paul McCartney"], correct: 2, fact: "Beyoncé holds the record with 32 Grammy wins as of 2024. She also holds the record for the most nominations in Grammy history.", pts: 200 },
+        { q: "'Bohemian Rhapsody' was released by which band?", answers: ["Led Zeppelin","The Rolling Stones","Queen","Aerosmith"], correct: 2, fact: "Released in 1975, it was considered uncommercially long at 5:55 minutes. Mercury refused to shorten it. It became one of the best-selling singles of all time.", pts: 100 },
+        { q: "What instrument does a drummer play when using brushes instead of sticks?", answers: ["The same drum kit","A cajon","A snare only","Brushes require a different kit"], correct: 0, fact: "Wire brushes are used on the same kit for a softer, more textured sound — common in jazz, country, and quieter acoustic settings.", pts: 200 },
+        { q: "Which Taylor Swift album contains the song 'Shake It Off'?", answers: ["Red","Speak Now","1989","Fearless"], correct: 2, fact: "'Shake It Off' led the '1989' album in 2014. The album marked Swift's full pivot from country to pop and won the Grammy for Album of the Year.", pts: 100 }
+      ]
+    },
+    {
+      name: 'Wild Card',
+      icon: '🎲',
+      intro: "Round 5 — the closer. Anything goes. Bigger points on the line.",
+      questions: [
+        { q: "How many dots are on a standard pair of dice?", answers: ["36","40","42","48"], correct: 2, fact: "Each die has 21 dots (1+2+3+4+5+6). Two dice = 42. Opposite faces always add up to 7.", pts: 200 },
+        { q: "What is the only country in the world with a non-rectangular national flag?", answers: ["Switzerland","Vatican City","Nepal","Bhutan"], correct: 2, fact: "Nepal's flag is a double pennon — two stacked triangular pennants. It's the only national flag that isn't a quadrilateral.", pts: 200 },
+        { q: "A group of flamingos is called a what?", answers: ["Flock","Colony","Flamboyance","Parade"], correct: 2, fact: "A flamboyance. Also acceptable: a pat, a regiment, or a stand. English has hundreds of collective animal nouns — most invented by medieval hunters.", pts: 200 },
+        { q: "Which planet in our solar system has the most moons?", answers: ["Jupiter","Saturn","Uranus","Neptune"], correct: 1, fact: "Saturn leads with 146 confirmed moons as of 2023, edging past Jupiter's 95. New moons are still being discovered regularly around both planets.", pts: 200 },
+        { q: "How many seconds are in a standard year?", answers: ["About 30 million","About 31.5 million","About 52 million","About 365,000"], correct: 1, fact: "31,536,000 seconds exactly (365 × 24 × 60 × 60). A leap year adds 86,400 more. Light travels about 9.46 trillion kilometers in that time — one light-year.", pts: 300 }
+      ]
+    }
+  ]
+};
+</script>
+
+<div class="bg-layer">
+  <div class="bg-grid"></div>
+  <div class="bg-grid-major"></div>
+  <div class="bg-shapes">
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+    <div class="bg-circle c3"></div>
+    <div class="bg-circle c4"></div>
+  </div>
+  <div class="glow-blob a"></div>
+  <div class="glow-blob b"></div>
+  <div class="scanlines"></div>
+</div>
+
+<div class="cfwrap" id="cfWrap"></div>
+<div class="err-banner" id="errBanner"></div>
+
+<div class="display-wrapper">
+
+  <header class="header">
+    <div class="brand">
+      <div class="brand-badge">
+        <div class="brand-text">
+          <div class="brand-name">ClubOS Trivia</div>
+          <div class="brand-venue">Live Demo · Scan to Play</div>
+        </div>
+      </div>
+    </div>
+    <div class="hdr-center">
+      <div class="event-badge">
+        <div class="event-icon">🎲</div>
+        <div class="event-label">Bar Trivia</div>
+        <div class="event-icon">🏆</div>
+      </div>
+      <div class="event-round" id="roundLabel">5 Rounds · 25 Questions · No App Required</div>
+    </div>
+    <div class="hdr-right">
+      <button class="pause-btn" id="pauseBtn" onclick="togglePause()" style="display:none">⏸ PAUSE</button>
+      <div>
+        <div class="live-time" id="liveTime">—</div>
+        <div class="time-lbl">Local Time</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <div class="question-area" style="position:relative;">
+
+      <div class="pause-overlay" id="pauseOverlay">
+        <div style="font-size:80px">⏸</div>
+        <div class="pause-title">Game Paused</div>
+        <div class="pause-sub">Press Space or the Pause button to resume</div>
+      </div>
+
+      <!-- LOBBY -->
+      <div class="screen lobby" id="screenLobby">
+        <div class="lobby-icon">🎲</div>
+        <div class="lobby-title">
+          <span class="line1">Bar</span>
+          <span class="line2">Trivia</span>
+          <span class="line3">Scan the QR · Play from your phone · No app needed</span>
+        </div>
+        <div class="lobby-sub">Scan to join — your name goes on that screen</div>
+        <div class="lobby-count" id="lobbyCount">0</div>
+        <div class="lobby-hint">Players Ready · 5 Rounds · 25 Questions</div>
+        <button class="start-btn" id="startBtn" onclick="startGame()">Start Game</button>
+      </div>
+
+      <!-- ROUND INTRO -->
+      <div class="screen round-intro" id="screenIntro">
+        <div class="ri-icon" id="riIcon">🎲</div>
+        <div class="ri-eye" id="riEye">Round 1 of 5</div>
+        <div class="ri-title" id="riTitle">—</div>
+        <div class="ri-sub" id="riSub">—</div>
+        <div class="ri-countdown" id="riCountdown">Starting in 5…</div>
+      </div>
+
+      <!-- QUESTION -->
+      <div class="screen" id="screenQuestion">
+        <div class="q-meta">
+          <div class="q-num" id="qNum">Q1</div>
+          <div class="q-cat" id="qCat">—</div>
+          <div class="q-pts" id="qPts">100 PTS</div>
+        </div>
+        <div class="q-text" id="qText">—</div>
+        <div class="ans-grid" id="ansGrid"></div>
+        <div class="timer-zone">
+          <div class="timer-ring">
+            <svg viewBox="0 0 88 88">
+              <circle class="timer-track" cx="44" cy="44" r="37"/>
+              <circle class="timer-fill" id="timerFill" cx="44" cy="44" r="37"/>
+            </svg>
+            <div class="timer-num" id="timerNum">20</div>
+          </div>
+          <div class="timer-lbl">Seconds</div>
+        </div>
+      </div>
+
+      <!-- REVEAL -->
+      <div class="screen" id="screenReveal">
+        <div class="q-meta">
+          <div class="q-num" id="revNum">Q1</div>
+          <div class="q-cat" style="color:var(--accent2)">✓ Answer Revealed</div>
+        </div>
+        <div class="q-text" id="revQ" style="font-size:50px;margin-bottom:24px;"></div>
+        <div class="ans-grid" id="revAnswers"></div>
+        <div class="rev-fact-wrap">
+          <div class="rev-fact-lbl">Did You Know?</div>
+          <div class="rev-fact-text" id="revFact">—</div>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div class="screen" id="screenLB">
+        <div class="lb-title" id="lbTitle">🏆 Leaderboard</div>
+        <div class="lb-sub" id="lbSub">—</div>
+        <div class="lb-list" id="lbList"></div>
+      </div>
+
+      <!-- GAME OVER -->
+      <div class="screen game-over" id="screenOver">
+        <div class="go-trophy">🏆</div>
+        <div class="go-title">Trivia Champion</div>
+        <div class="go-winner">Tonight's Winner: <b id="winnerName">—</b></div>
+        <div class="lb-list" id="goList" style="width:100%;max-width:920px;animation:fadeUp 0.4s ease 0.2s both;"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="qr-section">
+        <div class="qr-eye">Scan to Play</div>
+        <div id="qrCanvas"></div>
+        <div id="qrUrl"></div>
+        <div class="qr-hint">No app · Submit from your phone</div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-eye">Live Stats</div>
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val yellow" id="statPlayers">0</div><div class="stat-lbl">Players In</div></div>
+          <div class="stat-box"><div class="stat-val white" id="statAnswers">0</div><div class="stat-lbl">Answers In</div></div>
+          <div class="stat-box"><div class="stat-val yellow" id="statAcc">—</div><div class="stat-lbl">Accuracy</div></div>
+          <div class="stat-box"><div class="stat-val lime" id="statStreak">—</div><div class="stat-lbl">Hot Streak</div></div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-eye">Rounds</div>
+        <div class="round-tracker" id="roundTracker"></div>
+      </div>
+      <div class="activity-section">
+        <div class="panel-eye">Live Activity</div>
+        <div class="activity-feed" id="actFeed"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="key-hint"><kbd>Space</kbd> Pause &nbsp; <kbd>Enter</kbd> Start</div>
+    <div class="footer-center">
+      <div class="fdot"></div>
+      <span id="footerMsg">—</span>
+      <div class="fdot"></div>
+    </div>
+    <div class="sponsor-slot">
+      <div class="sponsor-label">Presented by</div>
+      <div class="sponsor-name">Your Brand Here</div>
+    </div>
+    <div class="clubos-lockup">
+      <div class="clubos-powered">Powered by</div>
+      <div class="clubos-wordmark">Club<span>OS</span></div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function scaleTV(){ const s=Math.min(window.innerWidth/1920,window.innerHeight/1080); document.body.style.setProperty('--tv-scale',s); }
+  scaleTV(); window.addEventListener('resize',scaleTV);
+})();
+
+const LETTERS=['A','B','C','D'], CIRCUM=2*Math.PI*37;
+const AV_COLORS=['#F5E642','#A3F5A0','#F5A020','#E04040','#A084E8','#40C8F5','#F5E642','#A3F5A0'];
+
+document.getElementById('footerMsg').textContent=CONFIG.footerMsg;
+const rt=document.getElementById('roundTracker');
+CONFIG.rounds.forEach((_,i)=>{const p=document.createElement('div');p.className='round-pip';p.id=`pip-${i}`;rt.appendChild(p);});
+setInterval(()=>document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}),1000);
+document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+
+function showErr(msg){const b=document.getElementById('errBanner');b.textContent=msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+
+const sb=supabase.createClient(CONFIG.supabaseUrl,CONFIG.supabaseKey);
+let sessionId=null,playerCount=0,answerCount=0,maxStreak=0,playerStreaks={};
+let isPaused=false,currentRi=0,currentQi=0;
+
+async function initSession(){
+  try{
+    const{data,error}=await sb.from('trivia_sessions').insert({club_slug:CONFIG.clubSlug,phase:'lobby',round_index:0,question_index:0}).select().single();
+    if(error){showErr('DB error: '+error.message);return;}
+    sessionId=data.id;
+    const playUrl=`${window.location.origin}/play.html?s=${sessionId}`;
+    document.getElementById('qrUrl').textContent=playUrl.replace('https://','');
+    new QRCode(document.getElementById('qrCanvas'),{text:playUrl,width:172,height:172,colorDark:'#0C0C0F',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    sb.channel('players-'+sessionId).on('postgres_changes',{event:'INSERT',schema:'public',table:'trivia_players',filter:`session_id=eq.${sessionId}`},p=>onPlayerJoined(p.new)).subscribe();
+    showScreen('screenLobby');
+  }catch(e){showErr('Connection failed');console.error(e);}
+}
+
+function onPlayerJoined(player){playerCount++;document.getElementById('statPlayers').textContent=playerCount;document.getElementById('lobbyCount').textContent=playerCount;addActivity(player.name,AV_COLORS[playerCount%AV_COLORS.length],'Joined the game 🎲',null);}
+function onAnswerIn(answer){answerCount++;document.getElementById('statAnswers').textContent=answerCount;if(answer.is_correct){playerStreaks[answer.player_id]=(playerStreaks[answer.player_id]||0)+1;const s=playerStreaks[answer.player_id];if(s>maxStreak){maxStreak=s;document.getElementById('statStreak').textContent=s+'x';}}else{playerStreaks[answer.player_id]=0;}}
+async function updatePhase(phase,ri,qi){if(!sessionId)return;await sb.from('trivia_sessions').update({phase,round_index:ri,question_index:qi,updated_at:new Date().toISOString()}).eq('id',sessionId);}
+async function fetchLB(){const{data}=await sb.from('trivia_players').select('name,score,streak').eq('session_id',sessionId).order('score',{ascending:false}).limit(6);return data||[];}
+async function computeAndShowAccuracy(ri,qi){const{data}=await sb.from('trivia_answers').select('is_correct').eq('session_id',sessionId).eq('round_index',ri).eq('question_index',qi);if(!data||!data.length)return;const correct=data.filter(a=>a.is_correct).length;const acc=Math.round(correct/data.length*100);document.getElementById('statAcc').textContent=acc+'%';}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function updatePips(cur){CONFIG.rounds.forEach((_,i)=>{const p=document.getElementById(`pip-${i}`);p.className='round-pip';if(i<cur)p.classList.add('done');else if(i===cur)p.classList.add('active');});}
+function addActivity(name,color,action,pts){const f=document.getElementById('actFeed');const el=document.createElement('div');el.className='activity-item';el.innerHTML=`<div class="av" style="background:${color}">${name.substring(0,2).toUpperCase()}</div><div style="flex:1"><div class="av-name">${name}</div><div class="av-action">${action}</div></div>${pts?`<div class="av-pts">+${pts}</div>`:''}`;f.insertBefore(el,f.firstChild);while(f.children.length>9)f.removeChild(f.lastChild);}
+function confetti(n=50){const clrs=['#F5E642','#A3F5A0','#FFFFFF','#F5A020','#E04040'];const w=document.getElementById('cfWrap');for(let i=0;i<n;i++){const p=document.createElement('div');p.className='cp';p.style.cssText=`left:${Math.random()*100}%;background:${clrs[Math.floor(Math.random()*clrs.length)]};width:${Math.random()*7+5}px;height:${Math.random()*7+5}px;animation-duration:${Math.random()*2+2.5}s;animation-delay:${Math.random()*0.6}s;border-radius:${Math.random()>.5?'50%':'2px'};`;w.appendChild(p);setTimeout(()=>p.remove(),5000);}}
+
+let timerInt=null,timerVal=0;
+function startTimer(secs,onEnd){
+  clearInterval(timerInt);timerVal=secs;
+  const fill=document.getElementById('timerFill'),num=document.getElementById('timerNum');
+  fill.style.strokeDasharray=CIRCUM;
+  function tick(){if(isPaused)return;fill.style.strokeDashoffset=CIRCUM*(1-timerVal/secs);fill.style.stroke=timerVal<=5?'var(--red)':'var(--yellow)';fill.style.filter=timerVal<=5?'drop-shadow(0 0 8px rgba(224,64,64,0.8))':'drop-shadow(0 0 6px rgba(245,230,66,0.5))';num.textContent=timerVal;timerVal--;if(timerVal<0){clearInterval(timerInt);onEnd();}}
+  tick();timerInt=setInterval(tick,1000);
+}
+function stopTimer(){clearInterval(timerInt);}
+
+async function renderLB(cid,limit=6){
+  const players=await fetchLB();
+  const max=players[0]?.score||1;
+  const medals=['🥇','🥈','🥉'],cls=['gold','silver','bronze'];
+  document.getElementById(cid).innerHTML=players.slice(0,limit).map((p,i)=>`<div class="lb-row ${cls[i]||''}" style="animation:fadeUp 0.4s ease ${i*0.07}s both"><div class="lb-rank">${i+1}</div>${i<3?`<span style="font-size:22px">${medals[i]}</span>`:''}<div class="lb-name">${p.name}</div>${p.streak>=2?`<div class="lb-streak">🔥 ${p.streak}-streak</div>`:''}<div class="lb-score">${(p.score||0).toLocaleString()}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((p.score||0)/max*100).toFixed(1)}%"></div></div></div>`).join('');
+  return players;
+}
+
+function doPause(){isPaused=true;document.getElementById('pauseOverlay').classList.add('active');const btn=document.getElementById('pauseBtn');btn.textContent='▶ RESUME';btn.classList.add('paused');}
+function doResume(){isPaused=false;document.getElementById('pauseOverlay').classList.remove('active');const btn=document.getElementById('pauseBtn');btn.textContent='⏸ PAUSE';btn.classList.remove('paused');}
+async function togglePause(){if(!sessionId)return;if(isPaused){doResume();await updatePhase('question',currentRi,currentQi);}else{doPause();await sb.from('trivia_sessions').update({phase:'paused',updated_at:new Date().toISOString()}).eq('id',sessionId);}}
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.key===' '){e.preventDefault();const qScreen=document.getElementById('screenQuestion');if(qScreen.classList.contains('active'))togglePause();}
+  if(e.code==='Enter'||e.key==='Enter'){const lobby=document.getElementById('screenLobby');if(lobby.classList.contains('active'))startGame();}
+});
+
+function startGame(){runIntro(0);}
+
+function runIntro(ri){
+  const r=CONFIG.rounds[ri];currentRi=ri;
+  updatePips(ri);
+  document.getElementById('roundLabel').textContent=`Round ${ri+1} — ${r.name}`;
+  document.getElementById('riIcon').textContent=r.icon;
+  document.getElementById('riEye').textContent=`Round ${ri+1} of ${CONFIG.rounds.length}`;
+  document.getElementById('riTitle').textContent=r.name;
+  document.getElementById('riSub').textContent=r.intro;
+  document.getElementById('pauseBtn').style.display='none';
+  showScreen('screenIntro');updatePhase('intro',ri,0);
+  let c=CONFIG.introCDSecs;const el=document.getElementById('riCountdown');
+  el.textContent=`Starting in ${c}…`;
+  const ct=setInterval(()=>{c--;el.textContent=`Starting in ${c}…`;if(c<=0){clearInterval(ct);runQuestion(ri,0);}},1000);
+}
+
+function runQuestion(ri,qi){
+  const r=CONFIG.rounds[ri],q=r.questions[qi];
+  if(!q){showMidLB(ri);return;}
+  currentRi=ri;currentQi=qi;answerCount=0;
+  document.getElementById('statAnswers').textContent='0';
+  document.getElementById('qNum').textContent=`Q${ri*5+qi+1}`;
+  document.getElementById('qCat').textContent=r.name;
+  document.getElementById('qPts').textContent=`${q.pts} PTS`;
+  document.getElementById('qText').textContent=q.q;
+  document.getElementById('ansGrid').innerHTML=q.answers.map((a,i)=>`<div class="abtn"><div class="aletter">${LETTERS[i]}</div><div class="atext">${a}</div></div>`).join('');
+  document.getElementById('pauseBtn').style.display='flex';
+  const ch=sb.channel('q-answers-'+sessionId+'-'+ri+'-'+qi);
+  ch.on('postgres_changes',{event:'INSERT',schema:'public',table:'trivia_answers',filter:`session_id=eq.${sessionId}`},p=>{if(p.new.round_index===ri&&p.new.question_index===qi)onAnswerIn(p.new);}).subscribe();
+  showScreen('screenQuestion');updatePhase('question',ri,qi);
+  startTimer(CONFIG.questionSecs,()=>{ch.unsubscribe();runReveal(ri,qi);});
+}
+
+async function runReveal(ri,qi){
+  const r=CONFIG.rounds[ri],q=r.questions[qi];
+  stopTimer();document.getElementById('pauseBtn').style.display='none';
+  await computeAndShowAccuracy(ri,qi);
+  document.getElementById('revNum').textContent=`Q${ri*5+qi+1}`;
+  document.getElementById('revQ').textContent=q.q;
+  document.getElementById('revFact').textContent=q.fact;
+  document.getElementById('revAnswers').innerHTML=q.answers.map((a,i)=>{const ok=i===q.correct;return`<div class="abtn ${ok?'correct':'wrong'}">${ok?'<div class="correct-sweep"></div>':''}<div class="aletter">${LETTERS[i]}</div><div class="atext">${a}</div></div>`;}).join('');
+  showScreen('screenReveal');updatePhase('reveal',ri,qi);
+  if(Math.random()>0.55)confetti(35);
+  setTimeout(()=>runQuestion(ri,qi+1),CONFIG.revealSecs*1000);
+}
+
+async function showMidLB(ri){
+  const isLast=ri===CONFIG.rounds.length-1;
+  const players=await renderLB('lbList',6);
+  document.getElementById('lbTitle').textContent=isLast?'🏆 Final Scores':'🏆 Leaderboard';
+  document.getElementById('lbSub').textContent=isLast?'Thanks for playing!':`After Round ${ri+1} · ${CONFIG.rounds.length-ri-1} round${CONFIG.rounds.length-ri-1!==1?'s':''} remaining`;
+  document.getElementById('pauseBtn').style.display='none';
+  showScreen('screenLB');updatePhase('leaderboard',ri,0);confetti(60);
+  setTimeout(()=>{if(isLast)showGameOver(players);else runIntro(ri+1);},7000);
+}
+
+function showGameOver(players){
+  document.getElementById('winnerName').textContent=players[0]?.name||'—';
+  renderLB('goList',5);showScreen('screenOver');updatePhase('gameover',0,0);confetti(80);
+  let sec=20;const el=document.getElementById('goRestart');
+  if(el){const ct=setInterval(()=>{sec--;el.textContent=`New game starting in ${sec}…`;if(sec<=0){clearInterval(ct);location.reload();}},1000);}
+}
+
+initSession();
+</script>
+</body>
+</html>
