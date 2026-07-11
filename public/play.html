@@ -4,28 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ClubOS Trivia — Join the Game</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg:     #0C0C0F;
-    --yellow: #F5E642;
-    --accent: #A3F5A0;
-    --red:    #E04040;
-    --white:  #F0EEE8;
-    --dim:    rgba(240,238,232,0.5);
-    --faint:  rgba(240,238,232,0.05);
-    --sep:    rgba(240,238,232,0.09);
+    /* ClubOS brand system */
+    --bg:     #0D1F17;
+    --bg2:    #0A1812;
+    --gold:   #C9A84C;
+    --sage:   #9DBFA6;
+    --red:    #C4584F;
+    --cream:  #FAF7F2;
+    --dim:    rgba(250,247,242,0.5);
+    --faint:  rgba(250,247,242,0.05);
+    --sep:    rgba(250,247,242,0.09);
   }
 
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { width:100%; min-height:100vh; font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--white); overflow-x:hidden; }
+  html,body { width:100%; min-height:100vh; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--cream); overflow-x:hidden; }
 
   body::before {
     content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
     background-image:
-      linear-gradient(rgba(245,230,66,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(245,230,66,0.02) 1px, transparent 1px);
+      linear-gradient(rgba(201,168,76,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.02) 1px, transparent 1px);
     background-size:60px 60px;
   }
 
@@ -34,101 +36,102 @@
 
   /* TOP BAR */
   .top-bar {
-    background:rgba(9,9,13,0.97); border-bottom:1px solid var(--sep);
+    background:rgba(10,24,18,0.97); border-bottom:1px solid var(--sep);
     padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
     position:sticky; top:0; z-index:100; backdrop-filter:blur(16px);
   }
-  .top-bar::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--yellow), transparent); opacity:0.7; }
+  .top-bar::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--gold), transparent); opacity:0.7; }
   .tb-brand { display:flex; flex-direction:column; gap:2px; }
-  .tb-title { font-family:'Oswald'; font-size:16px; font-weight:600; color:var(--white); letter-spacing:1px; line-height:1; }
-  .tb-sub   { font-size:10px; color:var(--yellow); letter-spacing:2px; text-transform:uppercase; }
+  .tb-title { font-family:'Cormorant Garamond', serif; font-size:21px; font-weight:500; color:var(--cream); letter-spacing:0.01em; line-height:1.15; }
+  .tb-title .os { color:var(--gold); font-style:italic; font-weight:600; }
+  .tb-sub   { font-family:'DM Mono'; font-size:10px; color:var(--gold); letter-spacing:2px; text-transform:uppercase; }
   .tb-right { text-align:right; }
-  .tb-score { font-family:'Bebas Neue'; font-size:26px; color:var(--yellow); letter-spacing:1px; line-height:1; }
-  .tb-score-lbl { font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
+  .tb-score { font-family:'DM Mono'; font-size:22px; font-weight:500; color:var(--gold); letter-spacing:1px; line-height:1.15; }
+  .tb-score-lbl { font-family:'DM Mono'; font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
 
   /* JOIN */
   .join-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px; gap:24px; text-align:center; }
   .join-icon { font-size:64px; animation:bounce 1.6s ease-in-out infinite alternate; }
   @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-10px)} }
-  .join-title { font-family:'Bebas Neue'; font-size:52px; letter-spacing:2px; line-height:0.95; }
-  .join-title .j1 { color:var(--white); display:block; }
-  .join-title .j2 { color:var(--yellow); display:block; }
+  .join-title { font-family:'Cormorant Garamond', serif; font-size:62px; font-weight:300; letter-spacing:0; line-height:1; }
+  .join-title .j1 { color:var(--cream); display:block; }
+  .join-title .j2 { color:var(--gold); display:block; font-style:italic; font-weight:400; }
   .join-sub { font-size:15px; color:var(--dim); line-height:1.6; max-width:280px; font-weight:300; }
-  .name-input { width:100%; max-width:320px; padding:16px 20px; background:rgba(255,255,255,0.05); border:1.5px solid var(--sep); border-radius:6px; font-family:'Space Grotesk'; font-size:18px; font-weight:600; color:var(--white); text-align:center; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
-  .name-input::placeholder { color:rgba(240,238,232,0.22); font-weight:400; }
-  .name-input:focus { border-color:var(--yellow); background:rgba(245,230,66,0.04); }
-  .join-btn { width:100%; max-width:320px; padding:18px; background:var(--yellow); border:none; border-radius:4px; font-family:'Oswald'; font-size:20px; font-weight:600; letter-spacing:2px; color:var(--bg); text-transform:uppercase; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; }
+  .name-input { width:100%; max-width:320px; padding:16px 20px; background:rgba(250,247,242,0.05); border:1.5px solid var(--sep); border-radius:6px; font-family:'DM Sans', sans-serif; font-size:18px; font-weight:500; color:var(--cream); text-align:center; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+  .name-input::placeholder { color:rgba(250,247,242,0.22); font-weight:400; }
+  .name-input:focus { border-color:var(--gold); background:rgba(201,168,76,0.04); }
+  .join-btn { width:100%; max-width:320px; padding:18px; background:var(--gold); border:none; border-radius:4px; font-family:'DM Sans', sans-serif; font-size:20px; font-weight:600; letter-spacing:2px; color:var(--bg); text-transform:uppercase; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; }
   .join-btn:active { transform:scale(0.97); }
   .join-btn:disabled { opacity:0.45; cursor:not-allowed; }
   .join-notice { font-size:12px; color:var(--dim); text-align:center; line-height:1.6; font-weight:300; }
 
   /* LOBBY WAIT */
   .lobby-wait { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px; text-align:center; gap:20px; }
-  .wait-title { font-family:'Bebas Neue'; font-size:40px; letter-spacing:2px; color:var(--white); }
+  .wait-title { font-family:'Cormorant Garamond', serif; font-size:46px; font-weight:300; letter-spacing:0; color:var(--cream); }
   .wait-sub { font-size:15px; color:var(--dim); line-height:1.6; font-weight:300; }
-  .player-tag { display:inline-flex; align-items:center; gap:8px; background:rgba(245,230,66,0.08); border:1px solid rgba(245,230,66,0.25); border-radius:4px; padding:10px 18px; }
-  .player-tag-name { font-family:'Oswald'; font-size:20px; font-weight:600; color:var(--yellow); letter-spacing:1px; }
+  .player-tag { display:inline-flex; align-items:center; gap:8px; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.25); border-radius:4px; padding:10px 18px; }
+  .player-tag-name { font-family:'DM Sans', sans-serif; font-size:18px; font-weight:600; color:var(--gold); letter-spacing:1px; }
   .wait-score-row { display:flex; gap:16px; }
   .wait-stat { background:var(--faint); border:1px solid var(--sep); border-radius:6px; padding:12px 20px; text-align:center; }
-  .wait-stat-val { font-family:'Bebas Neue'; font-size:28px; color:var(--yellow); }
-  .wait-stat-lbl { font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
-  .pulse-ring { width:72px; height:72px; border-radius:50%; border:2px solid var(--yellow); display:flex; align-items:center; justify-content:center; font-size:28px; animation:ringPulse 2s ease-in-out infinite; }
-  @keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,230,66,0.35)} 50%{box-shadow:0 0 0 16px rgba(245,230,66,0)} }
+  .wait-stat-val { font-family:'DM Mono'; font-size:24px; font-weight:500; color:var(--gold); line-height:1.2; }
+  .wait-stat-lbl { font-family:'DM Mono'; font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+  .pulse-ring { width:72px; height:72px; border-radius:50%; border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; font-size:28px; animation:ringPulse 2s ease-in-out infinite; }
+  @keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0.35)} 50%{box-shadow:0 0 0 16px rgba(201,168,76,0)} }
 
   /* QUESTION PAGE */
   .q-page-body { flex:1; display:flex; flex-direction:column; padding:16px 16px 32px; gap:14px; }
   .q-meta-bar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--faint); border:1px solid var(--sep); border-radius:6px; }
-  .q-label { font-family:'Oswald'; font-size:13px; font-weight:600; color:var(--yellow); letter-spacing:2px; text-transform:uppercase; }
-  .q-pts-badge { font-family:'Oswald'; font-size:13px; font-weight:600; color:var(--yellow); background:rgba(245,230,66,0.08); border:1px solid rgba(245,230,66,0.2); border-radius:3px; padding:3px 10px; letter-spacing:1px; }
+  .q-label { font-family:'DM Mono'; font-size:12px; font-weight:500; color:var(--gold); letter-spacing:2px; text-transform:uppercase; }
+  .q-pts-badge { font-family:'DM Mono'; font-size:12px; font-weight:500; color:var(--gold); background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:3px; padding:4px 10px; letter-spacing:1px; }
   .q-timer-bar-wrap { height:4px; background:var(--faint); border-radius:2px; overflow:hidden; }
-  .q-timer-bar { height:100%; border-radius:2px; background:var(--yellow); transition:width 1s linear, background 0.5s; width:100%; }
+  .q-timer-bar { height:100%; border-radius:2px; background:var(--gold); transition:width 1s linear, background 0.5s; width:100%; }
   .q-text-box { background:var(--faint); border:1px solid var(--sep); border-radius:8px; padding:20px; }
-  .q-text-str { font-family:'Oswald'; font-size:20px; font-weight:600; color:var(--white); line-height:1.45; letter-spacing:0.3px; }
+  .q-text-str { font-family:'Cormorant Garamond', serif; font-size:27px; font-weight:500; color:var(--cream); line-height:1.32; letter-spacing:0; }
   .ans-list { display:flex; flex-direction:column; gap:10px; }
   .ans-btn { width:100%; display:flex; align-items:center; gap:14px; background:var(--faint); border:1.5px solid var(--sep); border-radius:8px; padding:16px 18px; cursor:pointer; transition:all 0.15s; text-align:left; }
   .ans-btn:active:not(:disabled) { transform:scale(0.98); }
-  .ans-btn.selected { background:rgba(245,230,66,0.07); border-color:rgba(245,230,66,0.4); }
-  .ans-btn.correct  { background:rgba(163,245,160,0.1); border-color:var(--accent); }
-  .ans-btn.wrong    { background:rgba(224,64,64,0.05); border-color:rgba(224,64,64,0.18); opacity:0.5; }
+  .ans-btn.selected { background:rgba(201,168,76,0.07); border-color:rgba(201,168,76,0.4); }
+  .ans-btn.correct  { background:rgba(157,191,166,0.1); border-color:var(--sage); }
+  .ans-btn.wrong    { background:rgba(196,88,79,0.05); border-color:rgba(196,88,79,0.18); opacity:0.5; }
   .ans-btn:disabled { cursor:not-allowed; }
-  .ans-letter { width:36px; height:36px; border-radius:4px; flex-shrink:0; background:rgba(255,255,255,0.05); border:1px solid var(--sep); display:flex; align-items:center; justify-content:center; font-family:'Oswald'; font-size:16px; font-weight:700; color:var(--yellow); transition:all 0.15s; }
-  .ans-btn.selected .ans-letter { background:rgba(245,230,66,0.2); border-color:var(--yellow); color:var(--white); }
-  .ans-btn.correct  .ans-letter { background:var(--accent); border-color:var(--accent); color:var(--bg); }
-  .ans-btn.wrong    .ans-letter { background:rgba(224,64,64,0.1); color:var(--red); border-color:transparent; }
-  .ans-text { font-size:16px; font-weight:500; color:var(--white); line-height:1.35; }
+  .ans-letter { width:36px; height:36px; border-radius:4px; flex-shrink:0; background:rgba(250,247,242,0.05); border:1px solid var(--sep); display:flex; align-items:center; justify-content:center; font-family:'DM Mono'; font-size:16px; font-weight:500; color:var(--gold); transition:all 0.15s; }
+  .ans-btn.selected .ans-letter { background:rgba(201,168,76,0.2); border-color:var(--gold); color:var(--cream); }
+  .ans-btn.correct  .ans-letter { background:var(--sage); border-color:var(--sage); color:var(--bg); }
+  .ans-btn.wrong    .ans-letter { background:rgba(196,88,79,0.1); color:var(--red); border-color:transparent; }
+  .ans-text { font-size:16px; font-weight:500; color:var(--cream); line-height:1.35; }
 
   /* RESULT BANNER */
   .result-banner { padding:14px 18px; border-radius:8px; text-align:center; margin-top:4px; }
-  .result-banner.correct-b { background:rgba(163,245,160,0.1); border:1px solid rgba(163,245,160,0.3); }
-  .result-banner.wrong-b   { background:rgba(224,64,64,0.08); border:1px solid rgba(224,64,64,0.2); }
-  .result-banner.locked-b  { background:rgba(245,230,66,0.06); border:1px solid rgba(245,230,66,0.2); }
-  .result-title { font-family:'Oswald'; font-size:20px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
-  .result-banner.correct-b .result-title { color:var(--accent); }
+  .result-banner.correct-b { background:rgba(157,191,166,0.1); border:1px solid rgba(157,191,166,0.3); }
+  .result-banner.wrong-b   { background:rgba(196,88,79,0.08); border:1px solid rgba(196,88,79,0.2); }
+  .result-banner.locked-b  { background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.2); }
+  .result-title { font-family:'DM Sans', sans-serif; font-size:18px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; }
+  .result-banner.correct-b .result-title { color:var(--sage); }
   .result-banner.wrong-b   .result-title { color:var(--red); }
-  .result-banner.locked-b  .result-title { color:var(--yellow); }
+  .result-banner.locked-b  .result-title { color:var(--gold); }
   .result-pts { font-size:13px; color:var(--dim); margin-top:4px; font-weight:300; }
 
   /* BETWEEN */
   .between-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center; padding:24px; }
   .between-icon  { font-size:56px; }
-  .between-title { font-family:'Oswald'; font-size:28px; font-weight:600; color:var(--white); letter-spacing:1px; }
+  .between-title { font-family:'Cormorant Garamond', serif; font-size:36px; font-weight:400; color:var(--cream); letter-spacing:0; }
   .between-sub   { font-size:14px; color:var(--dim); line-height:1.6; font-weight:300; }
   .score-card { background:var(--faint); border:1px solid var(--sep); border-radius:8px; padding:20px 32px; text-align:center; }
-  .score-card-val { font-family:'Bebas Neue'; font-size:52px; color:var(--yellow); letter-spacing:2px; line-height:1; }
-  .score-card-lbl { font-size:11px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-top:4px; }
+  .score-card-val { font-family:'DM Mono'; font-size:44px; font-weight:500; color:var(--gold); letter-spacing:1px; line-height:1.1; }
+  .score-card-lbl { font-family:'DM Mono'; font-size:11px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-top:6px; }
 
   /* GAME OVER */
   .final-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px; gap:20px; text-align:center; }
   .final-trophy { font-size:72px; animation:bounce 1.2s ease-in-out infinite alternate; }
-  .final-title { font-family:'Bebas Neue'; font-size:52px; letter-spacing:3px; color:var(--yellow); }
-  .final-score-card { background:rgba(245,230,66,0.07); border:1px solid rgba(245,230,66,0.25); border-radius:8px; padding:24px 40px; text-align:center; }
-  .final-score-val { font-family:'Bebas Neue'; font-size:64px; color:var(--yellow); letter-spacing:2px; line-height:1; }
-  .final-score-lbl { font-size:12px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-top:4px; }
+  .final-title { font-family:'Cormorant Garamond', serif; font-size:58px; font-weight:300; letter-spacing:0; color:var(--gold); }
+  .final-score-card { background:rgba(201,168,76,0.07); border:1px solid rgba(201,168,76,0.25); border-radius:8px; padding:24px 40px; text-align:center; }
+  .final-score-val { font-family:'DM Mono'; font-size:54px; font-weight:500; color:var(--gold); letter-spacing:1px; line-height:1.1; }
+  .final-score-lbl { font-family:'DM Mono'; font-size:12px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-top:6px; }
   .final-sub { font-size:16px; color:var(--dim); line-height:1.7; font-weight:300; }
 
   .clubos-footer { padding:24px; text-align:center; border-top:1px solid var(--sep); margin-top:auto; }
-  .clubos-footer-wordmark { font-size:13px; color:rgba(240,238,232,0.2); letter-spacing:2px; }
-  .clubos-footer-wordmark span { color:rgba(245,230,66,0.35); font-style:italic; }
+  .clubos-footer-wordmark { font-family:'Cormorant Garamond', serif; font-size:17px; font-weight:500; color:rgba(250,247,242,0.45); letter-spacing:0.01em; }
+  .clubos-footer-wordmark span { color:var(--gold); font-style:italic; font-weight:600; }
 
   .err-toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--red); color:white; padding:12px 24px; border-radius:4px; font-size:14px; font-weight:600; z-index:999; display:none; white-space:nowrap; max-width:90vw; text-align:center; }
 </style>
@@ -140,7 +143,7 @@
 <div class="page active" id="pageJoin">
   <div class="top-bar">
     <div class="tb-brand">
-      <div class="tb-title">ClubOS Trivia</div>
+      <div class="tb-title">Club <span class="os">OS</span> Trivia</div>
       <div class="tb-sub">Bar Trivia · Live Demo</div>
     </div>
     <div style="font-size:22px">🎲</div>
@@ -153,14 +156,14 @@
     <button class="join-btn" id="joinBtn" onclick="joinGame()">Join Game</button>
     <div class="join-notice">💡 Your name goes on the leaderboard · No download required</div>
   </div>
-  <div class="clubos-footer"><div class="clubos-footer-wordmark">Powered by Club<span>OS</span></div></div>
+  <div class="clubos-footer"><div class="clubos-footer-wordmark">Powered by Club <span>OS</span></div></div>
 </div>
 
 <!-- LOBBY WAIT -->
 <div class="page" id="pageLobby">
   <div class="top-bar">
     <div class="tb-brand">
-      <div class="tb-title">ClubOS Trivia</div>
+      <div class="tb-title">Club <span class="os">OS</span> Trivia</div>
       <div class="tb-sub">You're in!</div>
     </div>
     <div class="tb-right"><div class="tb-score" id="lobbyScoreDisplay">0</div><div class="tb-score-lbl">Points</div></div>
@@ -194,7 +197,7 @@
 <div class="page" id="pageBetween">
   <div class="top-bar">
     <div class="tb-brand">
-      <div class="tb-title">ClubOS Trivia</div>
+      <div class="tb-title">Club <span class="os">OS</span> Trivia</div>
       <div class="tb-sub" id="btSubLabel">Next question coming…</div>
     </div>
     <div class="tb-right"><div class="tb-score" id="btScoreDisplay">0</div><div class="tb-score-lbl">Points</div></div>
@@ -212,7 +215,7 @@
   <div class="top-bar">
     <div class="tb-brand">
       <div class="tb-title">Game Over</div>
-      <div class="tb-sub">ClubOS Trivia</div>
+      <div class="tb-sub">Club OS Trivia</div>
     </div>
   </div>
   <div class="final-body">
@@ -224,7 +227,7 @@
     </div>
     <div class="final-sub">Thanks for playing!<br>Check the TV for the final leaderboard.</div>
   </div>
-  <div class="clubos-footer"><div class="clubos-footer-wordmark">Powered by Club<span>OS</span></div></div>
+  <div class="clubos-footer"><div class="clubos-footer-wordmark">Powered by Club <span>OS</span></div></div>
 </div>
 
 <script>
@@ -363,7 +366,7 @@ function renderQuestion(ri,qi){
 function startClientTimer(secs){
   clearInterval(timerInterval);timerSecs=secs;
   const bar=document.getElementById('qTimerBar');if(!bar)return;
-  bar.style.width='100%';bar.style.background='var(--yellow)';
+  bar.style.width='100%';bar.style.background='var(--gold)';
   timerInterval=setInterval(()=>{
     timerSecs=Math.max(0,timerSecs-1);
     const pct=(timerSecs/secs)*100;
